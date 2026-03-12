@@ -13,17 +13,17 @@ jobs:
 
       - name: Fetch Latest Post from Facebook
         run: |
-          # 1. Fetch data from Facebook API
-          # We use 'jq' to extract the 'message' field from the first item in the feed
+          # Fetch data
           RESPONSE=$(curl -s "https://graph.facebook.com/v24.0/${{ secrets.FB_PAGE_ID }}/feed?limit=1&access_token=${{ secrets.FB_TOKEN }}")
-          MESSAGE=$(echo $RESPONSE | jq -r '.data[0].message')
           
-          # 2. If message is empty (e.g. only a photo), get the created_time or a fallback
-          if [ "$MESSAGE" == "null" ]; then MESSAGE="New photo posted! Check it out on Facebook."; fi
+          # Use jq to get the message and escape it for sed
+          MESSAGE=$(echo $RESPONSE | jq -r '.data[0].message // "Check our Facebook for the latest update!"')
+          
+          # Clean up the message to remove characters that break the script
+          CLEAN_MESSAGE=$(echo "$MESSAGE" | tr -d '\n' | sed 's/[&/]/\\&/g')
 
-          # 3. Replace the placeholder in index.html
-          # We use a temp file to avoid issues with sed
-          sed "s/{{FB_POST}}/$MESSAGE/g" index.html > temp.html && mv temp.html index.html
+          # Replace the placeholder using | as a separator instead of /
+          sed -i "s|{{FB_POST}}|$CLEAN_MESSAGE|g" index.html
 
       - name: Commit and Push changes
         run: |
